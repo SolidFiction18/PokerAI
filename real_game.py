@@ -381,28 +381,56 @@ def play_poker_hand(ai_stack, min_raise):
 
 
 def betting_round(hole_cards, community_cards, current_bet, min_raise, ai_stack, ai_position, total_players, last_raise):
-    all_call = False
     game_over = False
-    while not all_call:
-        # AI makes its action first
-        ai_action, ai_bet = ai_poker_strategy(hole_cards, community_cards, current_bet, min_raise, ai_stack, last_raise)
-        print(f"AI's Action: {ai_action} with bet {ai_bet}")
-        ai_stack -= ai_bet
-        current_bet = ai_bet
+    pot = 0
+    players_in_hand = [True] * (total_players + 1)  # Index 1-based
+    player_bets = [0] * (total_players + 1)
 
-        # Now, track the actions of other players
-        actions, last_raise = track_opponent_actions(total_players, ai_position, current_bet)
-        all_call = all(player_action[0] == "Call" for player_action in actions.values())
+    while True:
+        all_called = True
+        for player in range(1, total_players + 1):
+            if not players_in_hand[player]:
+                continue
 
-        if not all_call:
-            user_response = input("Is the betting phase over? (yes/no): ").strip().lower()
-            if user_response == 'yes':
-                all_call = True
+            if player == ai_position:
+                action, bet = ai_poker_strategy(hole_cards, community_cards, current_bet, min_raise, ai_stack, last_raise)
+                print(f"AI's Action: {action} with bet {bet}")
+                if action == "Fold":
+                    players_in_hand[player] = False
+                else:
+                    ai_stack -= bet
+                    player_bets[player] = bet
+                    if bet > current_bet:
+                        last_raise = bet
+                        current_bet = bet
+                        all_called = False
             else:
-                print("Betting continues to the next player.")
-        #ask if game over if yes, gameover = true, else false
-    
+                move = input(f"Enter action for Player {player} (fold/call/raise amount): ").strip().lower()
+                if move.startswith("raise"):
+                    try:
+                        amount = int(move.split()[1])
+                        player_bets[player] = amount
+                        current_bet = max(current_bet, amount)
+                        last_raise = current_bet
+                        all_called = False
+                    except:
+                        print("Invalid raise amount.")
+                        return ai_stack, True, last_raise
+                elif move == "call":
+                    player_bets[player] = current_bet
+                elif move == "fold":
+                    players_in_hand[player] = False
+                else:
+                    print("Invalid move.")
+                    return ai_stack, True, last_raise
+
+        if all_called:
+            break
+        else:
+            print("Betting continues.\n")
+
     return ai_stack, game_over, last_raise
+
 
 
 def main():

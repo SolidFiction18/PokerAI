@@ -409,7 +409,7 @@ def betting_round(hole_cards, community_cards, current_bet, min_raise, ai_stack,
             if player == ai_position:
                 if preflop:
                     action = "raise"
-                    bet = blind - current_bet
+                    bet = blind
                     ai_stack -= bet
                     player_bets[player] = bet
                     preflop = False

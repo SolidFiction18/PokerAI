@@ -331,34 +331,45 @@ def play_poker_hand(ai_stack, min_raise):
     hole_cards = get_hole_cards()
 
     print("-- Pre-Flop Actions --")
-    
+    while True:
+        try:
+            user_flop = int(input ("Is the Ai a blind position? (An amount or 0 for no): "))
+            break
+        except ValueError:
+            print("Please enter a valid number.")
+
+    if (user_flop > 0):
+        preflop = True
+        blind = user_flop
     last_raise = current_bet  # Initialize last_raise here
     # AI makes its move first
     #ai_action, ai_bet = ai_poker_strategy(hole_cards, community_cards, current_bet, min_raise, ai_stack, last_raise)
     
     # Track actions of opponents, passing the last raise
-    opponent_moves, last_raise = track_opponent_actions(total_players, ai_position, last_raise)
+    #opponent_moves, last_raise = track_opponent_actions(total_players, ai_position, last_raise)
 
     #game_over is wrong in line 255
-    ai_stack, game_over, last_raise = betting_round(hole_cards, community_cards, current_bet, min_raise, ai_stack, ai_position, total_players, last_raise)
+    ai_stack, game_over, last_raise = betting_round(hole_cards, community_cards, current_bet, min_raise, ai_stack, ai_position, total_players, last_raise, preflop, blind)
     if game_over:
         return ai_stack
+    
+    preflop = False
 
     community_cards = get_flop()
     print("-- Flop Actions --")
-    ai_stack, game_over, last_raise = betting_round(hole_cards, community_cards, current_bet, min_raise, ai_stack, ai_position, total_players, last_raise)
+    ai_stack, game_over, last_raise = betting_round(hole_cards, community_cards, current_bet, min_raise, ai_stack, ai_position, total_players, last_raise, preflop, blind)
     if game_over:
         return ai_stack
 
     community_cards += get_turn()
     print("-- Turn Actions --")
-    ai_stack, game_over, last_raise = betting_round(hole_cards, community_cards, current_bet, min_raise, ai_stack, ai_position, total_players, last_raise)
+    ai_stack, game_over, last_raise = betting_round(hole_cards, community_cards, current_bet, min_raise, ai_stack, ai_position, total_players, last_raise, preflop, blind)
     if game_over:
         return ai_stack
 
     community_cards += get_river()
     print("-- River Actions --")
-    ai_stack, game_over, last_raise = betting_round(hole_cards, community_cards, current_bet, min_raise, ai_stack, ai_position, total_players, last_raise)
+    ai_stack, game_over, last_raise = betting_round(hole_cards, community_cards, current_bet, min_raise, ai_stack, ai_position, total_players, last_raise, preflop, blind)
     if game_over:
         return ai_stack
 
@@ -380,7 +391,7 @@ def play_poker_hand(ai_stack, min_raise):
 
 
 
-def betting_round(hole_cards, community_cards, current_bet, min_raise, ai_stack, ai_position, total_players, last_raise):
+def betting_round(hole_cards, community_cards, current_bet, min_raise, ai_stack, ai_position, total_players, last_raise, preflop, blind):
     game_over = False
     pot = 0
     players_in_hand = [True] * (total_players + 1)  # Index 1-based
@@ -393,19 +404,34 @@ def betting_round(hole_cards, community_cards, current_bet, min_raise, ai_stack,
                 continue
 
             if player == ai_position:
-                action, bet = ai_poker_strategy(hole_cards, community_cards, current_bet, min_raise, ai_stack, last_raise)
-                print(f"AI's Action: {action} with bet {bet}")
-                if action == "Fold":
-                    players_in_hand[player] = False
-                else:
+                if preflop:
+                    action = "raise"
+                    bet = blind - current_bet
                     ai_stack -= bet
                     player_bets[player] = bet
-                    if bet > current_bet:
-                        last_raise = bet
-                        current_bet = bet
-                        all_called = False
+                    preflop = False
+                    print(f"AI's Action: {action} with bet {bet}")
+                else:
+                    action, bet = ai_poker_strategy(hole_cards, community_cards, current_bet, min_raise, ai_stack, last_raise)
+                    print(f"AI's Action: {action} with bet {bet}")
+                    if action == "Fold":
+                        players_in_hand[player] = False
+                    else:
+                        ai_stack -= bet
+                        player_bets[player] = bet
+                        if bet > current_bet:
+                            last_raise = bet
+                            current_bet = bet
+                            all_called = False
             else:
-                move = input(f"Enter action for Player {player} (fold/call/raise amount): ").strip().lower()
+                while True:
+                    try:
+                        move = input(f"Enter action for Player {player} (fold/call/raise amount/exit): ").strip().lower()
+                        if (move.startswith("raise") or move.startswith("call") or move.startswith("fold") or move.startswith("exit")):    
+                            break
+                    except ValueError:
+                        print("Please enter a valid number.")
+                   
                 if move.startswith("raise"):
                     try:
                         amount = int(move.split()[1])
@@ -420,6 +446,9 @@ def betting_round(hole_cards, community_cards, current_bet, min_raise, ai_stack,
                     player_bets[player] = current_bet
                 elif move == "fold":
                     players_in_hand[player] = False
+                elif move == "exit":
+                    all_called = True
+                    break
                 else:
                     print("Invalid move.")
                     return ai_stack, True, last_raise

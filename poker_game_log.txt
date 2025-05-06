@@ -4,3 +4,9 @@ AI Action: Raise
 Hand Strength: 80.00%
 Result: AI Wins
 ------------------------------
+Hole Cards: ['AS', 'KH']
+Community Cards: ['10H', '8D', '5S', 'JD', '3C']
+AI Action: Raise
+Hand Strength: 80.00%
+Result: AI Wins
+------------------------------

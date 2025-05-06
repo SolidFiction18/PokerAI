@@ -131,34 +131,13 @@ def calculate_hand_strength(hand_rank):
     """
     return (hand_rank / 10) * 100 # Convert rank to a percentage
 
-def monte_carlo_simulation(hole_cards, community_cards, num_simulations=10000):
-    """ Simulates poker rounds to estimate the probability of having the
-    best hand. """
-    wins = 0
-    
-    for _ in range(num_simulations):
-        random_opponent_hand = random.sample(DECK, 2) # Simulate an opponent
-        random_opponent_hand_parse = [parse_card(c) for c in random_opponent_hand]
-        best_hand_player, rank_player = find_best_hand(hole_cards, community_cards)
-        best_hand_opponent, rank_opponent = find_best_hand(random_opponent_hand_parse, community_cards)
-        if rank_player > rank_opponent:
-            wins += 1
-    return wins*100 / num_simulations
-
-def parse_card(card_str):
-    """Converts a string like '10H' into a tuple ('10', 'H')"""
-    if len(card_str) == 3:
-        return (card_str[:2], card_str[2])
-    else:
-        return (card_str[0], card_str[1])
-
 def should_bluff(hand_strength):
     """ AI decides if it should bluff. """
     if 30 <= hand_strength <= 50:
         return random.choice([True, False]) # Random 50% bluff chance
     return False
 
-def ai_poker_decision(hand_strength, current_bet, min_raise, ai_stack, community_cards):
+def ai_poker_decision(hand_strength, current_bet, min_raise, ai_stack):
     """
     Determines the AI's action in a poker game based on hand strength.
     Parameters:
@@ -170,9 +149,6 @@ def ai_poker_decision(hand_strength, current_bet, min_raise, ai_stack, community
     str: The action chosen ("Fold", "Call", "Raise", "All-in").
     int: The amount of chips to bet (if applicable).
     """
-    if community_cards == []:
-        return "Call", current_bet
-    
     if hand_strength < 10:
         return "Call", 0 # Weak hand → Fold
     elif 10 <= hand_strength < 30:
@@ -194,10 +170,10 @@ def ai_poker_decision(hand_strength, current_bet, min_raise, ai_stack, community
 def update_best_hand_after_river(hole_cards, community_cards):
     """ Recalculate the AI's best possible hand after the River card is revealed. """
     best_hand, hand_rank = find_best_hand(hole_cards, community_cards)
-    hand_strength = monte_carlo_simulation(hole_cards, community_cards)
+    hand_strength = calculate_hand_strength(hand_rank)
     print(f"Final Best Hand: {best_hand}")
     print(f"Final Hand Strength: {hand_strength:.2f}%")
-    return best_hand, hand_strength
+    return best_hand, hand_rank
 
 class PokerGame:
     def __init__(self, ai_stack=1000, opponent_stack=1000):
@@ -219,9 +195,7 @@ class PokerGame:
     def deal_hole_cards(self):
         """Deals two hole cards to AI."""
         self.hole_cards = [self.deck.pop(), self.deck.pop()]
-        self.opponent_hole_cards = [self.deck.pop(), self.deck.pop()]
         print(f"AI Hole Cards: {self.hole_cards}")
-        print(f"Opponent Hole Cards: {self.opponent_hole_cards}")
     def deal_flop(self):
         """Deals the Flop (three community cards)."""
         self.community_cards = [self.deck.pop(), self.deck.pop(),
@@ -238,7 +212,7 @@ class PokerGame:
     def ai_action(self):
         """AI makes a decision based on hand strength."""
         best_hand, hand_strength = update_best_hand_after_river(self.hole_cards, self.community_cards)
-        action, bet_amount = ai_poker_decision(hand_strength, self.current_bet, self.min_raise, self.ai_stack, self.community_cards)
+        action, bet_amount = ai_poker_decision(hand_strength, self.current_bet, self.min_raise, self.ai_stack)
         print(f"AI Decision: {action}, Bet: {bet_amount}")
         if action == "Fold":
             return False # AI folds and round ends
@@ -249,8 +223,7 @@ class PokerGame:
         
     def opponent_action(self):
         """Simulates an opponent's action."""
-        best_hand, hand_strength = update_best_hand_after_river(self.opponent_hole_cards, self.community_cards)
-        action,filler = ai_poker_decision(hand_strength, self.current_bet, self.min_raise, self.opponent_stack, self.community_cards)
+        action = random.choice(["Call", "Raise", "Fold"])
         self.opponent_moves.append(action)
         if action == "Call":
             print("Opponent Calls")
@@ -266,16 +239,12 @@ class PokerGame:
             print("Opponent Folds")
             return False # Opponent folds and AI wins pot
         return True # Opponent stays in the round
-    
     def showdown(self):
         """Determines the winner based on final hands."""
-        ai_best_hand, ai_hand_strength = update_best_hand_after_river(self.hole_cards, self.community_cards)
-        opponent_best_hand, opponent_hand_strength = update_best_hand_after_river(self.opponent_hole_cards, self.community_cards) # Simulated opponent hand
-        print(f"{opponent_best_hand}")
-        # Simulated hand ranking
-        filler_ai, ai_hand_rank = find_best_hand(self.hole_cards, self.community_cards)
-        filler_opponent, opponent_hand_rank= find_best_hand(self.opponent_hole_cards, self.community_cards)
-        
+        ai_best_hand, ai_hand_rank = update_best_hand_after_river(self.hole_cards, self.community_cards)
+        opponent_hand = [random.choice(self.deck[:5]),random.choice(self.deck[:5])] # Simulated opponent hand
+        print(f"{opponent_hand}")
+        opponent_best_hand, opponent_hand_rank = find_best_hand(opponent_hand, self.community_cards) # Simulated hand ranking
         print(f"AI Final Hand: {ai_best_hand} (Rank: {ai_hand_rank})")
         print(f"Opponent Hand: {opponent_best_hand} (Rank: {opponent_hand_rank})")
         if ai_hand_rank > opponent_hand_rank:
@@ -284,7 +253,6 @@ class PokerGame:
         else:
             print("Opponent Wins the Round!")
             self.opponent_stack += self.pot
-            
     def play_round(self):
         """Plays a full round of Texas Hold’em."""
         print("\n--- New Poker Round ---")
